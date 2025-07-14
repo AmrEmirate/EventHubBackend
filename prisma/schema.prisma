@@ -1,0 +1,139 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  // Sesuai permintaan Anda, output client akan digenerate ke folder ini
+  output   = "../generated/client" 
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ENUMS untuk Role dan Status
+enum UserRole {
+  CUSTOMER
+  ORGANIZER
+}
+
+enum TransactionStatus {
+  PENDING_PAYMENT      // Menunggu Pembayaran
+  PENDING_CONFIRMATION // Menunggu Konfirmasi Admin
+  COMPLETED            // Selesai
+  CANCELLED            // Dibatalkan oleh user/admin
+  EXPIRED              // Waktu pembayaran habis
+  REJECTED             // Pembayaran ditolak admin
+}
+
+// MODEL UTAMA
+
+model User {
+  id              String      @id @default(uuid())
+  email           String      @unique
+  name            String
+  password        String
+  role            UserRole    @default(CUSTOMER)
+  points          Int         @default(0)
+  referralCode    String      @unique @default(cuid()) // Kode referral unik milik user ini
+  referredById    String?     // ID user yang mereferensikan user ini
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relasi
+  organizedEvents Event[]     @relation("OrganizedBy")
+  transactions    Transaction[]
+  reviews         Review[]
+  profile         Profile?
+  vouchers        Voucher[]   @relation("UserVouchers")
+  referredBy      User?       @relation("Referrals", fields: [referredById], references: [id])
+  referrals       User[]      @relation("Referrals")
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  bio       String?
+  avatarUrl String?
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Event {
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique // Untuk URL yang lebih cantik, cth: /events/konser-musik-2025
+  description     String
+  category        String
+  location        String
+  startDate       DateTime
+  endDate         DateTime
+  price           Float
+  isFree          Boolean  @default(false)
+  ticketTotal     Int      // Jumlah total tiket yang tersedia
+  ticketSold      Int      @default(0)
+  organizerId     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relasi
+  organizer     User          @relation("OrganizedBy", fields: [organizerId], references: [id])
+  transactions  Transaction[]
+  reviews       Review[]
+  vouchers      Voucher[]     @relation("EventVouchers")
+}
+
+model Transaction {
+  id                String            @id @default(uuid())
+  userId            String
+  eventId           String
+  quantity          Int               // Jumlah tiket yang dibeli
+  totalPrice        Float             // Harga total sebelum diskon/poin
+  finalPrice        Float             // Harga yang harus dibayar setelah diskon/poin
+  status            TransactionStatus @default(PENDING_PAYMENT)
+  paymentProofUrl   String?
+  paymentDeadline   DateTime          // Batas waktu pembayaran (cth: 2 jam setelah checkout)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relasi
+  user      User     @relation(fields: [userId], references: [id])
+  event     Event    @relation(fields: [eventId], references: [id])
+  voucherId String?
+  voucher   Voucher? @relation(fields: [voucherId], references: [id])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  rating    Int      // Peringkat, misal 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  // Relasi
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId]) // User hanya bisa review 1 kali per event
+}
+
+// Voucher bisa dari penyelenggara (terikat event) atau dari sistem (hadiah referral)
+model Voucher {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  discountPercent Int      // Diskon dalam persen
+  maxDiscount     Float?   // Maksimal potongan harga
+  expiresAt       DateTime
+  
+  // Jika eventId null, berarti voucher ini dari sistem (umum)
+  eventId         String?
+  event           Event?   @relation("EventVouchers", fields: [eventId], references: [id])
+  
+  // Jika userId null, berarti voucher ini untuk umum (promosi)
+  // Jika ada isinya, berarti voucher ini spesifik untuk user tsb (hadiah)
+  userId          String?
+  user            User?    @relation("UserVouchers", fields: [userId], references: [id])
+  
+  transactions    Transaction[]
+}

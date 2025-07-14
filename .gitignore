@@ -1,0 +1,18 @@
+# Folder dependensi, bisa diinstal ulang dengan 'npm install'
+/node_modules
+
+# Folder hasil build dari TypeScript
+/dist
+
+# File environment variables, berisi rahasia & kunci API
+.env
+
+# File-file log
+*.log
+npm-debug.log*
+
+# Folder untuk file upload dari pengguna
+/uploads
+
+# Folder hasil generate dari Prisma
+/generated
