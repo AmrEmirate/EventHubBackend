@@ -3,8 +3,8 @@ import { User, Prisma } from '@prisma/client';
 import { hashPassword } from '../../utils/password.helper';
 
 // Tipe data untuk input register
-type RegisterInput = Omit<User, 'id' | 'points' | 'referralCode' | 'createdAt' | 'updatedAt'> & {
-  referralCode?: string; // Jadikan referralCode sebagai input opsional
+type RegisterInput = Omit<User, 'id' | 'points' | 'referralCode' | 'createdAt' | 'updatedAt' | 'referredById'> & {
+  referralCode?: string;
 };
 
 export const registerUser = async (data: RegisterInput) => {

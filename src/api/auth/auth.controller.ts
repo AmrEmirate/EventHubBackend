@@ -3,20 +3,37 @@ import { registerUser } from './auth.service';
 import { comparePassword } from '../../utils/password.helper';
 import { generateToken } from '../../utils/jwt.helper';
 import prisma from '../../config/prisma';
+import { z } from 'zod';
+
+// Skema validasi untuk data registrasi menggunakan Zod
+const registerSchema = z.object({
+  email: z.string().email({ message: "Format email tidak valid" }),
+  name: z.string().min(3, { message: "Nama minimal 3 karakter" }),
+  password: z.string().min(6, { message: "Password minimal 6 karakter" }),
+  role: z.enum(['CUSTOMER', 'ORGANIZER']),
+  referralCode: z.string().optional()
+});
 
 export const registerController = async (req: Request, res: Response) => {
   try {
-    const newUser = await registerUser(req.body);
+    const validatedData = registerSchema.parse(req.body);
+    const newUser = await registerUser(validatedData);
+    
     res.status(201).json({
       message: 'User registered successfully',
       data: newUser,
     });
   } catch (error: any) {
-    // Handle error jika email sudah ada
-    if (error.code === 'P2002') {
-      return res.status(409).json({ message: 'Email already exists' });
+    if (error instanceof z.ZodError) {
+      // Perbaikan di sini: gunakan error.flatten().fieldErrors
+      return res.status(400).json({ message: "Input tidak valid", errors: error.flatten().fieldErrors });
     }
-    res.status(500).json({ message: 'Something went wrong', error: error.message });
+    
+    if (error.code === 'P2002') {
+      return res.status(409).json({ message: 'Email sudah terdaftar.' });
+    }
+
+    res.status(500).json({ message: 'Terjadi kesalahan pada server', error: error.message });
   }
 };
 
@@ -26,13 +43,13 @@ export const loginController = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'User tidak ditemukan' });
     }
 
     const isPasswordValid = await comparePassword(password, user.password);
 
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Kredensial tidak valid' });
     }
 
     const token = generateToken({ userId: user.id, role: user.role });
@@ -43,6 +60,6 @@ export const loginController = async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    res.status(500).json({ message: 'Something went wrong', error: error.message });
+    res.status(500).json({ message: 'Terjadi kesalahan pada server', error: error.message });
   }
 };

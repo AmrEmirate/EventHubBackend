@@ -6,18 +6,13 @@ export default async function handler(req: Request, res: Response) {
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-    // Cari semua user yang dibuat lebih dari 3 bulan lalu dan masih punya poin
     const result = await prisma.user.updateMany({
       where: {
-        createdAt: {
-          lt: threeMonthsAgo,
-        },
-        points: {
-          gt: 0,
-        },
+        createdAt: { lt: threeMonthsAgo },
+        points: { gt: 0 },
       },
       data: {
-        points: 0, // Reset poin menjadi 0
+        points: 0,
       },
     });
 
