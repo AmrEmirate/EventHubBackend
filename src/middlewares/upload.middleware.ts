@@ -1,20 +1,14 @@
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
 
-// Pastikan folder uploads ada
-const uploadDir = 'uploads/';
-if (!fs.existsSync(uploadDir)){
-    fs.mkdirSync(uploadDir);
-}
-
-// Konfigurasi penyimpanan file
+// Konfigurasi penyimpanan file untuk lingkungan serverless seperti Vercel
 const storage = multer.diskStorage({
+  // Simpan file sementara di direktori /tmp, satu-satunya lokasi yang bisa ditulis di Vercel
   destination: function (req, file, cb) {
-    cb(null, uploadDir); // Simpan file di folder 'uploads/'
+    cb(null, '/tmp'); 
   },
   filename: function (req, file, cb) {
-    // Buat nama file yang unik
+    // Buat nama file yang unik untuk menghindari konflik
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
