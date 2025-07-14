@@ -1,5 +1,5 @@
 import prisma from '../../config/prisma';
-import { Event } from '@prisma/client'; // <-- Perbaikan path impor
+import { Event } from '@prisma/client'; // <-- PERBAIKAN UTAMA
 
 // Tipe data untuk input pembuatan event
 type CreateEventInput = Omit<Event, 'id' | 'slug' | 'ticketSold' | 'createdAt' | 'updatedAt'>;
