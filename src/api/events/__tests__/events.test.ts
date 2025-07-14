@@ -1,11 +1,10 @@
 import request from 'supertest';
-import express, { Request, Response, NextFunction } from 'express'; // <-- Tambahkan impor tipe di sini
+import express, { Request, Response, NextFunction } from 'express';
 import eventRoutes from '../events.routes';
 import { errorMiddleware } from '../../../middlewares/error.middleware';
 
 // Mock middleware otentikasi
 jest.mock('../../../middlewares/auth.middleware', () => ({
-  // Tambahkan tipe data pada parameter di sini
   authMiddleware: (req: Request, res: Response, next: NextFunction) => {
     req.user = { 
       id: 'organizer-test-id', 
@@ -15,18 +14,37 @@ jest.mock('../../../middlewares/auth.middleware', () => ({
   },
 }));
 
+// PERBAIKAN: Mock service layer untuk menghindari panggilan database
+jest.mock('../events.service', () => ({
+  createEvent: jest.fn().mockImplementation((eventData) => {
+    // Simulasikan respons sukses dari service
+    return Promise.resolve({
+      ...eventData,
+      id: 'new-event-id-123', // Berikan ID palsu
+      slug: 'konser-amal-tahunan-2025-12345',
+      ticketSold: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }),
+  // Anda bisa mock fungsi lain jika dibutuhkan oleh tes lain
+  getAllEvents: jest.fn().mockResolvedValue([]), 
+}));
+
 const app = express();
 app.use(express.json());
 app.use('/api/v1/events', eventRoutes);
 app.use(errorMiddleware);
 
 describe('Event Endpoints', () => {
-  // ... (isi tes Anda sudah benar)
+
   describe('POST /api/v1/events', () => {
-    it('Harus menolak pembuatan event jika data tidak lengkap', async () => {
+
+    it('Harus menolak pembuatan event jika data tidak lengkap (Zod validation)', async () => {
       const res = await request(app)
         .post('/api/v1/events')
         .send({ name: 'Event Kurang Data' });
+      
       expect(res.statusCode).toEqual(400);
       expect(res.body).toHaveProperty('errors');
     });
@@ -45,7 +63,10 @@ describe('Event Endpoints', () => {
           isFree: false,
           ticketTotal: 1000
         });
+
+      // Sekarang seharusnya berhasil karena service di-mock
       expect(res.statusCode).toEqual(201);
+      expect(res.body.data).toHaveProperty('name');
       expect(res.body.data.organizerId).toEqual('organizer-test-id');
     });
   });
