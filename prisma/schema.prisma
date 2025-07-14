@@ -89,6 +89,7 @@ model Transaction {
   totalPrice        Float             // Harga total sebelum diskon/poin
   finalPrice        Float             // Harga yang harus dibayar setelah diskon/poin
   status            TransactionStatus @default(PENDING_PAYMENT)
+  pointsUsed        Int               @default(0) // <-- TAMBAHAN: Mencatat poin yang digunakan
   paymentProofUrl   String?
   paymentDeadline   DateTime          // Batas waktu pembayaran (cth: 2 jam setelah checkout)
   createdAt         DateTime          @default(now())
@@ -123,6 +124,7 @@ model Voucher {
   discountPercent Int      // Diskon dalam persen
   maxDiscount     Float?   // Maksimal potongan harga
   expiresAt       DateTime
+  isUsed          Boolean  @default(false) // <-- TAMBAHAN: Menandai voucher sudah dipakai
   
   // Jika eventId null, berarti voucher ini dari sistem (umum)
   eventId         String?

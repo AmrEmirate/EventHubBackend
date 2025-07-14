@@ -166,3 +166,38 @@ export const rejectTransaction = async (organizerId: string, transactionId: stri
     })
   ]);
 };
+
+/**
+ * Pengguna membatalkan transaksi mereka sendiri.
+ * Hanya bisa dilakukan jika status masih PENDING_PAYMENT.
+ */
+export const cancelTransaction = async (userId: string, transactionId: string) => {
+  const transaction = await prisma.transaction.findFirst({
+    where: {
+      id: transactionId,
+      userId: userId,
+    },
+  });
+
+  if (!transaction) {
+    throw new Error('Transaksi tidak ditemukan atau Anda tidak punya akses.');
+  }
+
+  if (transaction.status !== 'PENDING_PAYMENT') {
+    throw new Error('Hanya transaksi yang menunggu pembayaran yang bisa dibatalkan.');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.event.update({
+      where: { id: transaction.eventId },
+      data: { ticketSold: { decrement: transaction.quantity } },
+    });
+
+    const cancelledTransaction = await tx.transaction.update({
+      where: { id: transactionId },
+      data: { status: 'CANCELLED' },
+    });
+
+    return cancelledTransaction;
+  });
+};

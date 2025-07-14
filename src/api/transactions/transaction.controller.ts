@@ -1,4 +1,4 @@
-import { Request, Response } from 'express'; // <-- INI SOLUSINYA
+import { Request, Response } from 'express';
 import * as transactionService from './transaction.service';
 
 export const createTransactionController = async (req: Request, res: Response) => {
@@ -52,7 +52,6 @@ export const rejectTransactionController = async (req: Request, res: Response) =
     }
 };
 
-// Jangan lupa tambahkan controller untuk melihat transaksi pribadi
 export const getMyTransactionsController = async (req: Request, res: Response) => {
     try {
         const transactions = await transactionService.getTransactionsByUserId(req.user!.id);
@@ -60,4 +59,14 @@ export const getMyTransactionsController = async (req: Request, res: Response) =
     } catch (error: any) {
         res.status(500).json({ message: error.message });
     }
-}
+};
+
+// Fungsi baru untuk membatalkan transaksi
+export const cancelTransactionController = async (req: Request, res: Response) => {
+  try {
+    const transaction = await transactionService.cancelTransaction(req.user!.id, req.params.id);
+    res.status(200).json({ message: 'Transaksi berhasil dibatalkan', data: transaction });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+};
