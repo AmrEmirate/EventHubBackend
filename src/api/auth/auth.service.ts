@@ -2,19 +2,22 @@ import prisma from '../../config/prisma';
 import { User, Prisma } from '@prisma/client';
 import { hashPassword } from '../../utils/password.helper';
 
-// Tipe data untuk input register
-type RegisterInput = Omit<User, 'id' | 'points' | 'referralCode' | 'createdAt' | 'updatedAt' | 'referredById'> & {
+// Tipe data untuk input register, sudah ditambahkan 'phone'
+type RegisterInput = Omit<User, 'id' | 'points' | 'referralCode' | 'createdAt' | 'updatedAt' | 'referredById' | 'phone'> & {
   referralCode?: string;
+  phone?: string | null;
 };
 
 export const registerUser = async (data: RegisterInput) => {
-  const { email, name, password, role, referralCode } = data;
+  // Ambil 'phone' dari data
+  const { email, name, password, role, referralCode, phone } = data;
 
   // Jika tidak ada referralCode, lakukan registrasi biasa
   if (!referralCode) {
     const hashedPassword = await hashPassword(password);
     const newUser = await prisma.user.create({
-      data: { email, name, password: hashedPassword, role },
+      // Tambahkan 'phone' ke data yang disimpan
+      data: { email, name, password: hashedPassword, role, phone },
     });
     // Jangan kembalikan password di response
     const { password: _, ...userWithoutPassword } = newUser;
@@ -33,7 +36,6 @@ export const registerUser = async (data: RegisterInput) => {
   }
 
   // 2. Lakukan semua operasi database dalam satu transaksi
-  // Perhatikan penambahan tipe data Prisma.TransactionClient di sini
   const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // 2a. Buat user baru (pendaftar) dengan 10.000 poin
     const hashedPassword = await hashPassword(password);
@@ -43,6 +45,7 @@ export const registerUser = async (data: RegisterInput) => {
         name,
         password: hashedPassword,
         role,
+        phone, // <-- Tambahkan 'phone' di sini
         points: 10000, // Langsung beri 10.000 poin
         referredById: referrer.id, // Catat siapa yang mereferensikan
       },

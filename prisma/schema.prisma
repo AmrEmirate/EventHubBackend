@@ -17,12 +17,12 @@ enum UserRole {
 }
 
 enum TransactionStatus {
-  PENDING_PAYMENT      // Menunggu Pembayaran
-  PENDING_CONFIRMATION // Menunggu Konfirmasi Admin
-  COMPLETED            // Selesai
-  CANCELLED            // Dibatalkan oleh user/admin
-  EXPIRED              // Waktu pembayaran habis
-  REJECTED             // Pembayaran ditolak admin
+  PENDING_PAYMENT
+  PENDING_CONFIRMATION
+  COMPLETED
+  CANCELLED
+  EXPIRED
+  REJECTED
 }
 
 // MODEL UTAMA
@@ -30,16 +30,16 @@ enum TransactionStatus {
 model User {
   id              String      @id @default(uuid())
   email           String      @unique
+  phone           String?     @unique
   name            String
   password        String
   role            UserRole    @default(CUSTOMER)
   points          Int         @default(0)
-  referralCode    String      @unique @default(cuid()) // Kode referral unik milik user ini
-  referredById    String?     // ID user yang mereferensikan user ini
+  referralCode    String      @unique @default(cuid())
+  referredById    String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   
-  // Relasi
   organizedEvents Event[]     @relation("OrganizedBy")
   transactions    Transaction[]
   reviews         Review[]
@@ -60,7 +60,7 @@ model Profile {
 model Event {
   id              String   @id @default(uuid())
   name            String
-  slug            String   @unique // Untuk URL yang lebih cantik, cth: /events/konser-musik-2025
+  slug            String   @unique
   description     String
   category        String
   location        String
@@ -68,13 +68,12 @@ model Event {
   endDate         DateTime
   price           Float
   isFree          Boolean  @default(false)
-  ticketTotal     Int      // Jumlah total tiket yang tersedia
+  ticketTotal     Int
   ticketSold      Int      @default(0)
   organizerId     String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  // Relasi
   organizer     User          @relation("OrganizedBy", fields: [organizerId], references: [id])
   transactions  Transaction[]
   reviews       Review[]
@@ -85,17 +84,16 @@ model Transaction {
   id                String            @id @default(uuid())
   userId            String
   eventId           String
-  quantity          Int               // Jumlah tiket yang dibeli
-  totalPrice        Float             // Harga total sebelum diskon/poin
-  finalPrice        Float             // Harga yang harus dibayar setelah diskon/poin
+  quantity          Int
+  totalPrice        Float
+  finalPrice        Float
   status            TransactionStatus @default(PENDING_PAYMENT)
-  pointsUsed        Int               @default(0) // <-- TAMBAHAN: Mencatat poin yang digunakan
+  pointsUsed        Int               @default(0)
   paymentProofUrl   String?
-  paymentDeadline   DateTime          // Batas waktu pembayaran (cth: 2 jam setelah checkout)
+  paymentDeadline   DateTime
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  // Relasi
   user      User     @relation(fields: [userId], references: [id])
   event     Event    @relation(fields: [eventId], references: [id])
   voucherId String?
@@ -106,32 +104,27 @@ model Review {
   id        String   @id @default(uuid())
   userId    String
   eventId   String
-  rating    Int      // Peringkat, misal 1-5
+  rating    Int
   comment   String?
   createdAt DateTime @default(now())
 
-  // Relasi
   user  User  @relation(fields: [userId], references: [id])
   event Event @relation(fields: [eventId], references: [id])
 
-  @@unique([userId, eventId]) // User hanya bisa review 1 kali per event
+  @@unique([userId, eventId])
 }
 
-// Voucher bisa dari penyelenggara (terikat event) atau dari sistem (hadiah referral)
 model Voucher {
   id              String   @id @default(uuid())
   code            String   @unique
-  discountPercent Int      // Diskon dalam persen
-  maxDiscount     Float?   // Maksimal potongan harga
+  discountPercent Int
+  maxDiscount     Float?
   expiresAt       DateTime
-  isUsed          Boolean  @default(false) // <-- TAMBAHAN: Menandai voucher sudah dipakai
+  isUsed          Boolean  @default(false)
   
-  // Jika eventId null, berarti voucher ini dari sistem (umum)
   eventId         String?
   event           Event?   @relation("EventVouchers", fields: [eventId], references: [id])
   
-  // Jika userId null, berarti voucher ini untuk umum (promosi)
-  // Jika ada isinya, berarti voucher ini spesifik untuk user tsb (hadiah)
   userId          String?
   user            User?    @relation("UserVouchers", fields: [userId], references: [id])
   

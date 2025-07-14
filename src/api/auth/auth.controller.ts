@@ -10,13 +10,17 @@ const registerSchema = z.object({
   email: z.string().email({ message: "Format email tidak valid" }),
   name: z.string().min(3, { message: "Nama minimal 3 karakter" }),
   password: z.string().min(6, { message: "Password minimal 6 karakter" }),
+  phone: z.string().min(10, { message: "Nomor telepon minimal 10 digit"}).regex(/^(\+62|62|0)8[1-9][0-9]{6,9}$/, { message: "Format nomor telepon tidak valid" }).optional(), // <-- TAMBAHKAN INI
   role: z.enum(['CUSTOMER', 'ORGANIZER']),
   referralCode: z.string().optional()
 });
 
 export const registerController = async (req: Request, res: Response) => {
   try {
+    // 1. Validasi input
     const validatedData = registerSchema.parse(req.body);
+
+    // 2. Panggil service dengan data yang sudah bersih
     const newUser = await registerUser(validatedData);
     
     res.status(201).json({
@@ -24,15 +28,17 @@ export const registerController = async (req: Request, res: Response) => {
       data: newUser,
     });
   } catch (error: any) {
+    // Tangani error validasi dari Zod
     if (error instanceof z.ZodError) {
-      // Perbaikan di sini: gunakan error.flatten().fieldErrors
       return res.status(400).json({ message: "Input tidak valid", errors: error.flatten().fieldErrors });
     }
     
+    // Tangani error duplikat email dari Prisma
     if (error.code === 'P2002') {
       return res.status(409).json({ message: 'Email sudah terdaftar.' });
     }
 
+    // Tangani error umum lainnya
     res.status(500).json({ message: 'Terjadi kesalahan pada server', error: error.message });
   }
 };

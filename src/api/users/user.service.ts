@@ -11,6 +11,7 @@ export const getUserProfile = async (userId: string) => {
       name: true,
       role: true,
       points: true,
+      referralCode: true,
       profile: true, // Sertakan data dari tabel Profile
     },
   });
