@@ -1,5 +1,5 @@
 import prisma from '../../config/prisma';
-import { Prisma } from '../../../generated/client';
+import { Prisma } from '@prisma/client'; // <-- PERBAIKAN DI SINI
 
 // Mengambil profil user berdasarkan ID
 export const getUserProfile = async (userId: string) => {

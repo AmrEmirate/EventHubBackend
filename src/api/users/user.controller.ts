@@ -1,7 +1,6 @@
-import { Request, Response } from 'express'; // <-- Pastikan ini ada
+import { Request, Response } from 'express';
 import { getUserProfile, updateUserProfile } from './user.service';
 
-// Controller untuk mendapatkan profil 'saya' (logged-in user)
 export const getMeController = async (req: Request, res: Response) => {
   try {
     const userProfile = await getUserProfile(req.user!.id);
@@ -14,7 +13,6 @@ export const getMeController = async (req: Request, res: Response) => {
   }
 };
 
-// Controller untuk memperbarui profil 'saya'
 export const updateMeController = async (req: Request, res: Response) => {
   try {
     const updatedProfile = await updateUserProfile(req.user!.id, req.body);
