@@ -1,9 +1,9 @@
+import { Request, Response } from 'express'; // <-- Pastikan ini ada
 import { getUserProfile, updateUserProfile } from './user.service';
 
 // Controller untuk mendapatkan profil 'saya' (logged-in user)
 export const getMeController = async (req: Request, res: Response) => {
   try {
-    // req.user.id didapat dari authMiddleware
     const userProfile = await getUserProfile(req.user!.id);
     if (!userProfile) {
       return res.status(404).json({ message: 'Profil tidak ditemukan' });
@@ -22,4 +22,4 @@ export const updateMeController = async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ message: 'Gagal memperbarui profil', error: error.message });
   }
-}; 
+};

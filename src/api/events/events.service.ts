@@ -1,9 +1,12 @@
 import prisma from '../../config/prisma';
-import { Event } from '../../../generated/client';
+import { Event } from '@prisma/client'; // <-- Perbaikan path impor
 
+// Tipe data untuk input pembuatan event
 type CreateEventInput = Omit<Event, 'id' | 'slug' | 'ticketSold' | 'createdAt' | 'updatedAt'>;
 
-// Mendapatkan semua event dengan filter & pencarian
+/**
+ * Mendapatkan semua event dengan filter & pencarian
+ */
 export const getAllEvents = async (filters: { search?: string; location?: string; category?: string; }) => {
   const { search, location, category } = filters;
   return prisma.event.findMany({
@@ -19,12 +22,16 @@ export const getAllEvents = async (filters: { search?: string; location?: string
   });
 };
 
-// Mendapatkan satu event berdasarkan slug-nya
+/**
+ * Mendapatkan satu event berdasarkan slug-nya
+ */
 export const getEventBySlug = async (slug: string) => {
   return prisma.event.findUnique({ where: { slug } });
 };
 
-// Membuat event baru
+/**
+ * Membuat event baru
+ */
 export const createEvent = async (data: CreateEventInput): Promise<Event> => {
   const slug = data.name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
   return prisma.event.create({
@@ -32,9 +39,9 @@ export const createEvent = async (data: CreateEventInput): Promise<Event> => {
   });
 };
 
-// ... (fungsi getAllEvents, getEventBySlug, createEvent sudah ada)
-
-// Memperbarui event
+/**
+ * Memperbarui event
+ */
 export const updateEvent = async (eventId: string, userId: string, data: Partial<Event>) => {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event || event.organizerId !== userId) {
@@ -46,7 +53,9 @@ export const updateEvent = async (eventId: string, userId: string, data: Partial
   });
 };
 
-// Menghapus event
+/**
+ * Menghapus event
+ */
 export const deleteEvent = async (eventId: string, userId: string) => {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event || event.organizerId !== userId) {
@@ -55,9 +64,9 @@ export const deleteEvent = async (eventId: string, userId: string) => {
   return prisma.event.delete({ where: { id: eventId } });
 };
 
-// ... (fungsi lainnya)
-
-// Mendapatkan daftar peserta untuk sebuah event
+/**
+ * Mendapatkan daftar peserta untuk sebuah event
+ */
 export const getEventAttendees = async (organizerId: string, eventId: string) => {
     const event = await prisma.event.findFirst({ where: { id: eventId, organizerId } });
     if (!event) throw new Error("Event tidak ditemukan atau Anda tidak punya akses.");
@@ -74,5 +83,3 @@ export const getEventAttendees = async (organizerId: string, eventId: string) =>
     });
     return transactions;
 }
-
-// (Tambahkan fungsi update & delete di sini nanti)

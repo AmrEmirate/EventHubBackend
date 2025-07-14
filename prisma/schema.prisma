@@ -3,8 +3,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  // Sesuai permintaan Anda, output client akan digenerate ke folder ini
-  output   = "../generated/client" 
 }
 
 datasource db {

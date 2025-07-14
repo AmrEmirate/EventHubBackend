@@ -1,5 +1,6 @@
 import prisma from '../../config/prisma';
 import { sendTransactionStatusEmail } from '../../utils/mailer';
+import { Prisma } from '@prisma/client';
 
 /**
  * Membuat transaksi baru, dengan logika untuk voucher dan poin.
@@ -11,7 +12,8 @@ export const createTransaction = async (
   voucherCode?: string,
   usePoints?: boolean
 ) => {
-  return prisma.$transaction(async (tx) => {
+  // Perhatikan penambahan tipe data 'Prisma.TransactionClient' di sini
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const event = await tx.event.findUnique({ where: { id: eventId } });
     if (!event) throw new Error('Event tidak ditemukan');
 
@@ -125,7 +127,6 @@ export const approveTransaction = async (organizerId: string, transactionId: str
   });
   if (!transaction) throw new Error("Transaksi tidak ditemukan atau Anda tidak punya akses.");
 
-  // Kirim email notifikasi
   await sendTransactionStatusEmail(
     transaction.user.email,
     'Pembayaran Dikonfirmasi',
@@ -148,7 +149,6 @@ export const rejectTransaction = async (organizerId: string, transactionId: stri
   });
   if (!transaction) throw new Error("Transaksi tidak ditemukan atau Anda tidak punya akses.");
   
-  // Kirim email notifikasi
   await sendTransactionStatusEmail(
     transaction.user.email,
     'Pembayaran Ditolak',

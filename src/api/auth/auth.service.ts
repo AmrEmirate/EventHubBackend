@@ -1,5 +1,5 @@
 import prisma from '../../config/prisma';
-import { User, Prisma } from '../../../generated/client';
+import { User, Prisma } from '@prisma/client';
 import { hashPassword } from '../../utils/password.helper';
 
 // Tipe data untuk input register
@@ -33,8 +33,8 @@ export const registerUser = async (data: RegisterInput) => {
   }
 
   // 2. Lakukan semua operasi database dalam satu transaksi
-  // Ini memastikan jika salah satu gagal, semua akan dibatalkan (rollback)
-  const result = await prisma.$transaction(async (tx) => {
+  // Perhatikan penambahan tipe data Prisma.TransactionClient di sini
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // 2a. Buat user baru (pendaftar) dengan 10.000 poin
     const hashedPassword = await hashPassword(password);
     const newUser = await tx.user.create({

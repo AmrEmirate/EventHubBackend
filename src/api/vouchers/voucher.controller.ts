@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { getVouchersByUserId } from './voucher.service';
 
 export const getMyVouchersController = async (req: Request, res: Response) => {

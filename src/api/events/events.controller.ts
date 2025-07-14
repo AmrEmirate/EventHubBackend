@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import * as eventService from './events.service';
-import { UserRole } from '../../../generated/client';
+import { UserRole } from '@prisma/client';
 
 // [GET] /api/v1/events - Mendapatkan semua event
 export const getAllEventsController = async (req: Request, res: Response) => {

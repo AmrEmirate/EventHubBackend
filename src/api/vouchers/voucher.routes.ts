@@ -4,10 +4,7 @@ import { authMiddleware } from '../../middlewares/auth.middleware';
 
 const router = Router();
 
-// Daripada menggunakan router.use(authMiddleware),
-// kita terapkan middleware langsung ke setiap rute yang membutuhkan
-// untuk menghindari error tipe data yang kompleks.
-
+// Terapkan middleware langsung ke rute
 router.get('/me', authMiddleware, getMyVouchersController);
 
 export default router;
