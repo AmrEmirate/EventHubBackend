@@ -1,17 +1,19 @@
 import nodemailer from 'nodemailer';
 
-// Konfigurasi transporter Anda (gunakan Ethereal untuk testing)
+// Konfigurasi transporter yang mengambil data dari file .env
 const transporter = nodemailer.createTransport({
-  host: 'smtp.ethereal.email',
-  port: 587,
-  secure: false, 
+  host: process.env.MAIL_HOST || 'smtp.ethereal.email',
+  port: parseInt(process.env.MAIL_PORT || '587'),
+  secure: process.env.MAIL_PORT === '465', // true jika port 465, selain itu false
   auth: {
-    user: 'joany.langworth60@ethereal.email', // Ganti dengan akun Ethereal Anda
-    pass: 'v7mGbrxK8kK7mQW7sS',      // Ganti dengan password Ethereal Anda
+    user: process.env.MAIL_USER, // Ambil dari .env
+    pass: process.env.MAIL_PASS, // Ambil dari .env
   },
 });
 
-// Fungsi untuk mengirim email status transaksi
+/**
+ * Mengirim email terkait status transaksi.
+ */
 export const sendTransactionStatusEmail = async (to: string, subject: string, text: string) => {
   try {
     const info = await transporter.sendMail({
@@ -22,11 +24,13 @@ export const sendTransactionStatusEmail = async (to: string, subject: string, te
     });
     console.log('Preview URL (Transaction Status): %s', nodemailer.getTestMessageUrl(info));
   } catch (error) {
-    console.error(`Gagal mengirim email ke ${to}:`, error);
+    console.error(`Gagal mengirim email status transaksi ke ${to}:`, error);
   }
 };
 
-// Fungsi untuk mengirim email verifikasi
+/**
+ * Mengirim email verifikasi akun kepada pengguna baru.
+ */
 export const sendVerificationEmail = async (email: string, token: string) => {
   const verificationLink = `http://localhost:3000/auth/verify?token=${token}`;
   try {
@@ -34,7 +38,7 @@ export const sendVerificationEmail = async (email: string, token: string) => {
       from: '"EventHub Platform" <no-reply@eventhub.com>',
       to: email,
       subject: 'Verifikasi Akun EventHub Anda',
-      html: `<p>Terima kasih telah mendaftar! Silakan klik link di bawah ini untuk memverifikasi email Anda:</p><p><a href="${verificationLink}">Verifikasi Email Saya</a></p><p>Link ini akan kedaluwarsa dalam 1 jam.</p>`,
+      html: `<p>Terima kasih telah mendaftar! Klik link di bawah untuk memverifikasi email Anda:</p><p><a href="${verificationLink}">Verifikasi Email Saya</a></p><p>Link ini akan kedaluwarsa dalam 1 jam.</p>`,
     });
     console.log('Preview URL (Verification): %s', nodemailer.getTestMessageUrl(info));
   } catch (error) {
@@ -43,9 +47,10 @@ export const sendVerificationEmail = async (email: string, token: string) => {
   }
 };
 
-// [PENAMBAHAN] Fungsi baru untuk mengirim email reset password
+/**
+ * Mengirim email berisi link untuk mereset password.
+ */
 export const sendPasswordResetEmail = async (email: string, token: string) => {
-  // Ganti 'localhost:3000' dengan URL frontend Anda yang sebenarnya di production
   const resetLink = `http://localhost:3000/auth/reset-password?token=${token}`;
   try {
     const info = await transporter.sendMail({
