@@ -1,73 +1,89 @@
 import prisma from '../../config/prisma';
-import { User, Prisma } from '@prisma/client';
 import { hashPassword } from '../../utils/password.helper';
+import { generateSecureToken } from '../../utils/token.helper';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/mailer';
 
-// Tipe data untuk input register, sudah ditambahkan 'phone'
-type RegisterInput = Omit<User, 'id' | 'points' | 'referralCode' | 'createdAt' | 'updatedAt' | 'referredById' | 'phone'> & {
-  referralCode?: string;
+// Tipe data input registrasi
+type RegisterInput = {
+  email: string;
+  name: string;
+  password: string;
+  role: 'CUSTOMER' | 'ORGANIZER';
   phone?: string | null;
 };
 
+// Service untuk Registrasi
 export const registerUser = async (data: RegisterInput) => {
-  // Ambil 'phone' dari data
-  const { email, name, password, role, referralCode, phone } = data;
+  const { email, name, password, role, phone } = data;
 
-  // Jika tidak ada referralCode, lakukan registrasi biasa
-  if (!referralCode) {
-    const hashedPassword = await hashPassword(password);
-    const newUser = await prisma.user.create({
-      // Tambahkan 'phone' ke data yang disimpan
-      data: { email, name, password: hashedPassword, role, phone },
-    });
-    // Jangan kembalikan password di response
-    const { password: _, ...userWithoutPassword } = newUser;
-    return userWithoutPassword;
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    if (existingUser.emailVerified) throw new Error('Email sudah terdaftar.');
+    await prisma.user.delete({ where: { id: existingUser.id }});
   }
 
-  // --- LOGIKA JIKA ADA REFERRALCODE ---
-
-  // 1. Cari user pemilik referral code (si pengajak)
-  const referrer = await prisma.user.findUnique({
-    where: { referralCode: referralCode },
+  const hashedPassword = await hashPassword(password);
+  const user = await prisma.user.create({
+    data: { email, name, password: hashedPassword, role, phone },
   });
 
-  if (!referrer) {
-    throw new Error('Kode referral tidak valid.');
-  }
+  const token = generateSecureToken();
+  const expires = new Date(new Date().getTime() + 3600 * 1000); // 1 jam
 
-  // 2. Lakukan semua operasi database dalam satu transaksi
-  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    // 2a. Buat user baru (pendaftar) dengan 10.000 poin
-    const hashedPassword = await hashPassword(password);
-    const newUser = await tx.user.create({
-      data: {
-        email,
-        name,
-        password: hashedPassword,
-        role,
-        phone, // <-- Tambahkan 'phone' di sini
-        points: 10000, // Langsung beri 10.000 poin
-        referredById: referrer.id, // Catat siapa yang mereferensikan
-      },
-    });
-
-    // 2b. Buat voucher hadiah untuk si pengajak (referrer)
-    const expiryDate = new Date();
-    expiryDate.setMonth(expiryDate.getMonth() + 3); // Voucher berlaku 3 bulan
-
-    await tx.voucher.create({
-      data: {
-        code: `REF-${referrer.name.toUpperCase()}-${Date.now()}`, // Buat kode voucher unik
-        discountPercent: 15, // Hadiah diskon 15%
-        expiresAt: expiryDate,
-        userId: referrer.id, // Berikan voucher ini ke si pengajak
-      },
-    });
-
-    return newUser;
+  await prisma.verificationToken.create({
+    data: { userId: user.id, token, expires },
   });
 
-  // Jangan kembalikan password di response
-  const { password: _, ...userWithoutPassword } = result;
-  return userWithoutPassword;
+  await sendVerificationEmail(user.email, token);
+  return { message: "Registrasi berhasil! Cek email Anda untuk verifikasi." };
+};
+
+// Service untuk Verifikasi Email
+export const verifyEmail = async (token: string) => {
+    const existingToken = await prisma.verificationToken.findUnique({ where: { token } });
+    if (!existingToken) throw new Error("Token tidak valid atau tidak ditemukan.");
+    if (new Date(existingToken.expires) < new Date()) throw new Error("Token sudah kedaluwarsa.");
+
+    await prisma.user.update({
+        where: { id: existingToken.userId },
+        data: { emailVerified: new Date() }
+    });
+
+    await prisma.verificationToken.delete({ where: { id: existingToken.id } });
+    return { message: "Email berhasil diverifikasi!" };
+};
+
+// Service untuk Lupa Password
+export const forgotPassword = async (email: string) => {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !user.emailVerified) {
+        return { message: "Jika email Anda terdaftar dan terverifikasi, Anda akan menerima link reset password." };
+    }
+
+    const token = generateSecureToken();
+    const expires = new Date(new Date().getTime() + 3600 * 1000); // 1 jam
+
+    await prisma.passwordResetToken.create({
+        data: { userId: user.id, token, expires }
+    });
+
+    await sendPasswordResetEmail(user.email, token);
+    return { message: "Jika email Anda terdaftar dan terverifikasi, Anda akan menerima link reset password." };
+};
+
+// Service untuk Reset Password
+export const resetPassword = async (token: string, newPassword: string) => {
+    const existingToken = await prisma.passwordResetToken.findUnique({ where: { token } });
+    if (!existingToken) throw new Error("Token tidak valid atau tidak ditemukan.");
+    if (new Date(existingToken.expires) < new Date()) throw new Error("Token sudah kedaluwarsa.");
+
+    const newHashedPassword = await hashPassword(newPassword);
+
+    await prisma.user.update({
+        where: { id: existingToken.userId },
+        data: { password: newHashedPassword }
+    });
+
+    await prisma.passwordResetToken.delete({ where: { id: existingToken.id } });
+    return { message: "Password berhasil direset. Silakan login." };
 };
