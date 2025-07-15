@@ -1,6 +1,7 @@
 import prisma from '../../config/prisma';
 
 export const getOrganizerStats = async (organizerId: string) => {
+  // ... (existing code, no changes here)
   const totalRevenue = await prisma.transaction.aggregate({
     _sum: { finalPrice: true },
     where: { event: { organizerId }, status: 'COMPLETED' },
@@ -22,9 +23,8 @@ export const getOrganizerStats = async (organizerId: string) => {
   };
 };
 
-// [BARU] Fungsi untuk mengambil data analitik
 export const getOrganizerAnalytics = async (organizerId: string) => {
-  // 1. Mengambil data pendapatan per hari (untuk 30 hari terakhir)
+  // ... (existing code, no changes here)
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -47,18 +47,16 @@ export const getOrganizerAnalytics = async (organizerId: string) => {
     },
   });
 
-  // Format data agar sesuai dengan yang diharapkan frontend (Recharts)
   const formattedRevenue = revenuePerDay.map(item => ({
-    date: item.createdAt.toISOString().split('T')[0], // Format ke YYYY-MM-DD
+    date: item.createdAt.toISOString().split('T')[0],
     total: item._sum.finalPrice || 0,
   }));
 
-  // 2. Mengambil data tiket terjual per event
   const ticketsPerEvent = await prisma.event.findMany({
     where: {
       organizerId: organizerId,
       ticketSold: {
-        gt: 0, // Hanya ambil event yang ada penjualan
+        gt: 0,
       },
     },
     select: {
@@ -68,7 +66,7 @@ export const getOrganizerAnalytics = async (organizerId: string) => {
     orderBy: {
       ticketSold: 'desc',
     },
-    take: 10, // Ambil 10 event teratas
+    take: 10,
   });
   
   const formattedTickets = ticketsPerEvent.map(event => ({
@@ -79,5 +77,16 @@ export const getOrganizerAnalytics = async (organizerId: string) => {
   return {
     revenuePerDay: formattedRevenue,
     ticketsPerEvent: formattedTickets,
+  };
+};
+
+// [NEW] Add this new function to combine the data
+export const getOrganizerDashboardData = async (organizerId: string) => {
+  const stats = await getOrganizerStats(organizerId);
+  const analytics = await getOrganizerAnalytics(organizerId);
+
+  return {
+    stats,
+    analytics,
   };
 };

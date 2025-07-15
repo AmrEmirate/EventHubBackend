@@ -15,11 +15,11 @@
   "crons": [
     {
       "path": "/api/cron/expire-transactions",
-      "schedule": "0 0 * * *"
+      "schedule": "*/15 * * * *" 
     },
     {
       "path": "/api/cron/expire-points",
-      "schedule": "0 0 * * *"
+      "schedule": "0 0 1 * *" 
     }
   ]
 }

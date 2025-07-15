@@ -1,11 +1,16 @@
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs'; // [PERBAIKAN] Impor modul 'fs' dari Node.js
 
-// Konfigurasi penyimpanan file untuk lingkungan serverless seperti Vercel
+// [PERBAIKAN] Tentukan direktori upload
+const uploadDir = '/tmp/eventhub-uploads';
+
+// Konfigurasi penyimpanan file yang lebih robust
 const storage = multer.diskStorage({
-  // Simpan file sementara di direktori /tmp, satu-satunya lokasi yang bisa ditulis di Vercel
   destination: function (req, file, cb) {
-    cb(null, '/tmp'); 
+    // [PERBAIKAN] Cek dan buat direktori jika belum ada
+    fs.mkdirSync(uploadDir, { recursive: true });
+    cb(null, uploadDir); 
   },
   filename: function (req, file, cb) {
     // Buat nama file yang unik untuk menghindari konflik

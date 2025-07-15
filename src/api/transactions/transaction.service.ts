@@ -12,7 +12,6 @@ export const createTransaction = async (
   voucherCode?: string,
   usePoints?: boolean
 ) => {
-  // Perhatikan penambahan tipe data 'Prisma.TransactionClient' di sini
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const event = await tx.event.findUnique({ where: { id: eventId } });
     if (!event) throw new Error('Event tidak ditemukan');
@@ -28,7 +27,6 @@ export const createTransaction = async (
     let finalPrice = totalPrice;
     let pointsUsed = 0;
 
-    // Logika penggunaan voucher
     if (voucherCode) {
       const voucher = await tx.voucher.findFirst({
         where: { code: voucherCode, userId: userId, expiresAt: { gte: new Date() } },
@@ -40,7 +38,6 @@ export const createTransaction = async (
       finalPrice -= discountedAmount;
     }
 
-    // Logika penggunaan poin
     if (usePoints) {
       const pointsAsCurrency = user.points;
       pointsUsed = Math.min(finalPrice, pointsAsCurrency);
@@ -169,7 +166,6 @@ export const rejectTransaction = async (organizerId: string, transactionId: stri
 
 /**
  * Pengguna membatalkan transaksi mereka sendiri.
- * Hanya bisa dilakukan jika status masih PENDING_PAYMENT.
  */
 export const cancelTransaction = async (userId: string, transactionId: string) => {
   const transaction = await prisma.transaction.findFirst({

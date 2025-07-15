@@ -3,19 +3,47 @@ import * as eventService from './events.service';
 import { UserRole } from '@prisma/client';
 import { z } from 'zod';
 
-const createEventSchema = z.object({
+// [PERBAIKAN] Pisahkan skema dasar sebelum refine
+const rawEventSchema = z.object({
   name: z.string().min(5, { message: "Nama minimal 5 karakter" }),
   description: z.string().min(20, { message: "Deskripsi minimal 20 karakter" }),
-  category: z.string().min(1, { message: "Kategori wajib diisi"}),
-  location: z.string().min(1, { message: "Lokasi wajib diisi"}),
-  startDate: z.coerce.date(), 
+  category: z.string().min(1, { message: "Kategori wajib diisi" }),
+  location: z.string().min(1, { message: "Lokasi wajib diisi" }),
+  startDate: z.coerce.date(),
   endDate: z.coerce.date(),
-  price: z.number().min(0),
   isFree: z.boolean().default(false),
-  ticketTotal: z.number().int().positive({ message: "Jumlah tiket harus angka positif" })
+  ticketTotal: z.number().int().positive({ message: "Jumlah tiket harus angka positif" }),
+  price: z.number().optional(),
 });
 
-const updateEventSchema = createEventSchema.partial();
+// Skema untuk membuat event baru, terapkan refine di sini
+const createEventSchema = rawEventSchema.refine(data => {
+  if (!data.isFree && (data.price === undefined || data.price <= 0)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Harga wajib diisi dan harus lebih dari 0 untuk event berbayar",
+  path: ["price"],
+}).transform(data => {
+  if (data.isFree) {
+    return { ...data, price: 0 };
+  }
+  return { ...data, price: data.price! }; // Pastikan price tidak undefined setelah refine
+});
+
+// Skema untuk update event: panggil .partial() pada skema mentah
+const updateEventSchema = rawEventSchema.partial().transform(data => {
+    if (data.isFree === true) {
+        return { ...data, price: 0 };
+    }
+    if (data.isFree === false && data.price === undefined) {
+        // Jika isFree diubah jadi false tapi harga tidak diisi, biarkan validasi gagal di service/database
+        return data;
+    }
+    return data;
+});
+
 
 export const getAllEventsController = async (req: Request, res: Response) => {
     try {
@@ -61,7 +89,6 @@ export const updateEventController = async (req: Request, res: Response) => {
     }
     try {
         const validatedData = updateEventSchema.parse(req.body);
-        // Di backend, update menggunakan eventId dari params, bukan slug
         const updatedEvent = await eventService.updateEvent(req.params.id, req.user.id, validatedData);
         res.status(200).json({ message: 'Event berhasil diperbarui', data: updatedEvent });
     } catch (error: any) {
@@ -96,7 +123,6 @@ export const getEventAttendeesController = async (req: Request, res: Response) =
     }
 };
 
-// [BARU] Controller untuk mengambil event milik organizer
 export const getMyOrganizerEventsController = async (req: Request, res: Response) => {
     if (req.user?.role !== 'ORGANIZER') {
         return res.status(403).json({ message: 'Akses ditolak.' });
