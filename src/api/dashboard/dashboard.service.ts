@@ -1,8 +1,5 @@
 import prisma from '../../config/prisma';
 
-/**
- * Mengambil statistik dasar untuk dasbor organizer.
- */
 export const getOrganizerStats = async (organizerId: string) => {
   const totalRevenue = await prisma.transaction.aggregate({
     _sum: { finalPrice: true },
@@ -25,25 +22,45 @@ export const getOrganizerStats = async (organizerId: string) => {
   };
 };
 
-/**
- * Mengambil data analitik untuk grafik di dasbor.
- */
-export const getAnalyticsData = async (organizerId: string) => {
-  // 1. Data Pendapatan per Hari (revenuePerDay)
-  const revenuePerDay = await prisma.$queryRaw<Array<{ date: string; total: number }>>`
-    SELECT 
-      TO_CHAR(T."createdAt"::DATE, 'YYYY-MM-DD') as date, 
-      SUM(T."finalPrice")::float as total
-    FROM "Transaction" AS T
-    JOIN "Event" AS E ON T."eventId" = E.id
-    WHERE E."organizerId" = ${organizerId} AND T.status = 'COMPLETED'
-    GROUP BY DATE(T."createdAt")
-    ORDER BY DATE(T."createdAt") ASC;
-  `;
+// [BARU] Fungsi untuk mengambil data analitik
+export const getOrganizerAnalytics = async (organizerId: string) => {
+  // 1. Mengambil data pendapatan per hari (untuk 30 hari terakhir)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  // 2. Data Tiket Terjual per Event (ticketsPerEvent)
+  const revenuePerDay = await prisma.transaction.groupBy({
+    by: ['createdAt'],
+    where: {
+      event: {
+        organizerId: organizerId,
+      },
+      status: 'COMPLETED',
+      createdAt: {
+        gte: thirtyDaysAgo,
+      },
+    },
+    _sum: {
+      finalPrice: true,
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+  });
+
+  // Format data agar sesuai dengan yang diharapkan frontend (Recharts)
+  const formattedRevenue = revenuePerDay.map(item => ({
+    date: item.createdAt.toISOString().split('T')[0], // Format ke YYYY-MM-DD
+    total: item._sum.finalPrice || 0,
+  }));
+
+  // 2. Mengambil data tiket terjual per event
   const ticketsPerEvent = await prisma.event.findMany({
-    where: { organizerId },
+    where: {
+      organizerId: organizerId,
+      ticketSold: {
+        gt: 0, // Hanya ambil event yang ada penjualan
+      },
+    },
     select: {
       name: true,
       ticketSold: true,
@@ -51,16 +68,16 @@ export const getAnalyticsData = async (organizerId: string) => {
     orderBy: {
       ticketSold: 'desc',
     },
+    take: 10, // Ambil 10 event teratas
   });
-
-  // Ganti nama field 'name' menjadi 'eventName' dan 'ticketSold' menjadi 'sold'
-  const formattedTicketsPerEvent = ticketsPerEvent.map(event => ({
+  
+  const formattedTickets = ticketsPerEvent.map(event => ({
     eventName: event.name,
     sold: event.ticketSold,
   }));
 
   return {
-    revenuePerDay,
-    ticketsPerEvent: formattedTicketsPerEvent,
+    revenuePerDay: formattedRevenue,
+    ticketsPerEvent: formattedTickets,
   };
 };

@@ -1,7 +1,6 @@
 import prisma from '../../config/prisma';
-import { Event } from '@prisma/client'; // <-- PERBAIKAN UTAMA
+import { Event } from '@prisma/client';
 
-// Tipe data untuk input pembuatan event
 type CreateEventInput = Omit<Event, 'id' | 'slug' | 'ticketSold' | 'createdAt' | 'updatedAt'>;
 
 /**
@@ -16,7 +15,7 @@ export const getAllEvents = async (filters: { search?: string; location?: string
         location ? { location: { equals: location, mode: 'insensitive' } } : {},
         category ? { category: { equals: category, mode: 'insensitive' } } : {},
       ],
-      startDate: { gte: new Date() }, // Hanya tampilkan event yang akan datang
+      startDate: { gte: new Date() },
     },
     orderBy: { startDate: 'asc' },
   });
@@ -43,8 +42,8 @@ export const createEvent = async (data: CreateEventInput): Promise<Event> => {
  * Memperbarui event
  */
 export const updateEvent = async (eventId: string, userId: string, data: Partial<Event>) => {
-  const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event || event.organizerId !== userId) {
+  const event = await prisma.event.findFirst({ where: { id: eventId, organizerId: userId } });
+  if (!event) {
     throw new Error('Event tidak ditemukan atau Anda tidak punya akses.');
   }
   return prisma.event.update({
@@ -57,8 +56,8 @@ export const updateEvent = async (eventId: string, userId: string, data: Partial
  * Menghapus event
  */
 export const deleteEvent = async (eventId: string, userId: string) => {
-  const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event || event.organizerId !== userId) {
+  const event = await prisma.event.findFirst({ where: { id: eventId, organizerId: userId } });
+  if (!event) {
     throw new Error('Event tidak ditemukan atau Anda tidak punya akses.');
   }
   return prisma.event.delete({ where: { id: eventId } });
@@ -83,3 +82,17 @@ export const getEventAttendees = async (organizerId: string, eventId: string) =>
     });
     return transactions;
 }
+
+/**
+ * [BARU] Mendapatkan semua event yang dibuat oleh organizer tertentu
+ */
+export const getMyOrganizerEvents = async (organizerId: string) => {
+  return prisma.event.findMany({
+    where: {
+      organizerId: organizerId,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+};
